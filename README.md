@@ -1,6 +1,6 @@
-# Agrylizer: The Digital Fertilizer of Data and Insight
+# Agrilyzer: The Digital Fertilizer of Data and Insight
 
-Agrylizer is a modular agrometeorological intelligence system.
+Agrilyzer is a modular agrometeorological intelligence system.
 
 ## Data Source
 
