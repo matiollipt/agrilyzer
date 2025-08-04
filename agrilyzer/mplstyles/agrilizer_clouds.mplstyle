@@ -1,0 +1,16 @@
+# === agrilizer: Clouds ===
+axes.facecolor: white
+figure.facecolor: white
+axes.edgecolor: none
+axes.prop_cycle: cycler('color', ["#FFFFFF", "#DDDDDD", "#BBBBBB"])
+grid.color: none
+xtick.color: none
+ytick.color: none
+axes.labelcolor: none
+text.color: "#555555"
+font.size: 12
+legend.frameon: False
+axes.spines.top: False
+axes.spines.right: False
+axes.spines.left: False
+axes.spines.bottom: False
