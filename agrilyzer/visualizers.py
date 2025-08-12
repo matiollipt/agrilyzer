@@ -10,22 +10,6 @@ from datetime import datetime
 from agrilyzer.analyzers import Agrilyzer
 from agrilyzer.config import cfg
 
-DEFAULT_STYLE = "ggplot"
-AVAILABLE_STYLES = [
-    "ggplot",
-    "seaborn-v0_8-dark",
-    "seaborn-v0_8-white",
-    "seaborn-v0_8-darkgrid",
-    "seaborn-v0_8-whitegrid",
-    "fivethirtyeight",
-    "seaborn-v0_8-poster",
-    "seaborn-v0_8-talk",
-    "seaborn-v0_8-bright",
-    "seaborn-v0_8-muted",
-    "seaborn-v0_8-paper",
-]
-
-# TODO: add support for custom themes. they can be usefull for differentiating many parameters
 
 class Visualizer:
     """High-level plotting util around **Agrilyzer** with optional themes.
@@ -38,22 +22,18 @@ class Visualizer:
         agrilyzer: Agrilyzer,
         *,
         font_scale: Optional[float] = None,
-        use_theme: Union[bool, str, None] = None,
+        user_theme: Union[bool, str, None] = None,
+        user_cmap: str = "viridis",
     ) -> None:
         self.client = agrilyzer
         self.name = agrilyzer.name
         self.PARAMS = agrilyzer.PARAMS
+        self.user_theme = user_theme
+        self.user_cmap = user_cmap
 
         # plotting configuration
         self.plot_cfg: Dict[str, Any] = cfg.get("plot_config", {})
         self.font_scale = font_scale
-
-        # theme handling
-        self._theme_requested: Union[bool, str] = (
-            self.plot_cfg.get("theme", DEFAULT_STYLE)
-            if use_theme is None
-            else use_theme
-        )
 
         # figure & line defaults
         self.fig_defaults: Dict[str, Any] = self.plot_cfg.get("figure", {})
@@ -61,18 +41,23 @@ class Visualizer:
 
     def _style_context(self, override: Union[bool, str, None] = None):
         """Return a context manager applying built-in style theme if requested."""
-        choice = self._theme_requested if override is None else override
+        choice = override if override is not None else self.user_theme
         if not choice:
             return contextlib.nullcontext()
 
-        # Determine style to apply
-        style_name = (
-            choice
-            if isinstance(choice, str)
-            else self.plot_cfg.get("theme", DEFAULT_STYLE)
-        )
-        # Apply built-in matplotlib or seaborn style
-        return plt.style.context(style_name)
+        # Determine style name
+        if choice is True:
+            style_name = self.plot_cfg.get("theme", "ggplot")
+        elif isinstance(choice, str):
+            style_name = choice
+        else:
+            return contextlib.nullcontext()
+
+        # Apply style if available, else fallback
+        if style_name in mstyle.available:
+            return plt.style.context(style_name)
+        fallback = self.plot_cfg.get("theme", "ggplot")
+        return plt.style.context(fallback)
 
     def _apply_font_scaling(self, fig: plt.Figure, base_size: float = 12) -> None:
         w, h = fig.get_size_inches()
@@ -117,7 +102,7 @@ class Visualizer:
             fig, ax = plt.subplots(figsize=figsize, **fig_kw)
             self._apply_font_scaling(fig)
             ax2 = ax.twinx() if dual and len(cols) > 1 else None
-            cmap = plt.cm.get_cmap("Dark2", len(cols))
+            cmap = plt.cm.get_cmap(self.user_cmap, len(cols))
 
             for i, code in enumerate(cols):
                 srs = df[["date", code]].copy()
@@ -227,7 +212,8 @@ class Visualizer:
         kind: str = "errorbar",
         plot_kwargs: Dict[str, Any] | None = None,
     ) -> Tuple[List[Any], List[str]]:
-        cmap = plt.get_cmap("tab10", len(cols))
+        cmap = plt.cm.get_cmap(self.user_cmap, len(cols))
+        cmap_agri = plt.cm.get_cmap("Dark2", len(cols))
         handles, labels = [], []
         plot_kwargs = plot_kwargs or {}
 
@@ -241,7 +227,7 @@ class Visualizer:
             yerr = stats[f"{c}_std"].fillna(0)
 
             kwargs = {**self.line_defaults, **plot_kwargs}
-            kwargs.setdefault("color", cmap(i))
+            kwargs.setdefault("color", cmap_agri(i))
             kwargs.setdefault("label", c)
 
             if kind == "errorbar":
@@ -274,7 +260,8 @@ class Visualizer:
         kind: str = "line",
         plot_kwargs: Dict[str, Any] | None = None,
     ) -> Tuple[List[Any], List[str]]:
-        cmap = plt.get_cmap("Dark2", len(cols))
+        cmap = plt.cm.get_cmap(self.user_cmap, len(cols))
+        cmap_weather = plt.cm.get_cmap("tab20", len(cols))
         handles, labels = [], []
         plot_kwargs = plot_kwargs or {}
 
@@ -287,7 +274,7 @@ class Visualizer:
             y = df_w[code]
 
             kwargs = {**self.line_defaults, **plot_kwargs}
-            kwargs.setdefault("color", cmap(i))
+            kwargs.setdefault("color", cmap_weather(i))
             kwargs.setdefault("label", self.PARAMS.get(code, code))
             kwargs.setdefault("alpha", 0.7)
 
